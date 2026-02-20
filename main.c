@@ -3,6 +3,10 @@
 #include <string.h>
 #include <stdint.h>
 
+#define STATEMENT_TYPE_SYSCALL 0
+
+#define EXPRESSION_TYPE_UINT64 0
+
 struct expression {
     unsigned char type; // 0 (uint64)
     union {
@@ -14,6 +18,18 @@ struct statement {
     unsigned char type; // 0 (syscall)
     struct expression args[12]; // up to 12 arguments
 };
+
+int visualise_statement(struct statement* stmt) {
+    if(stmt->type == STATEMENT_TYPE_SYSCALL) {
+        printf("System call with arguments:\n");
+        for(int i = 0; i < 12; i++) {
+            if(stmt->args[i].type == EXPRESSION_TYPE_UINT64) {
+                printf("Arg %d: %lu\n", i + 1, stmt->args[i].value.uint64_value);
+            }
+        }
+    }
+    return 0;
+}
 
 int main() {
     FILE *file = fopen("main.gougoule", "r");
@@ -60,13 +76,6 @@ int main() {
         0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // Alignment
     };
 
-    char* token = strtok(token, " ");
-
-    while (token != NULL) {
-        if(strcmp(token, "sys") == 0) {
-            
-        }
-    }
     /*
     // print the syscall
     printf("System call number: %d\n", syscall.syscall_number);
