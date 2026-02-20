@@ -2,33 +2,67 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #define STATEMENT_TYPE_SYSCALL 0
 
 #define EXPRESSION_TYPE_UINT64 0
 
 struct expression {
-    unsigned char type; // 0 (uint64)
+    unsigned char type;
     union {
         uint64_t uint64_value;
     } value;
 };
 
 struct statement {
-    unsigned char type; // 0 (syscall)
-    struct expression args[12]; // up to 12 arguments
+    unsigned char type;
+    struct expression* args;
+    int num_args;
 };
+
+uint64_t parse_uint64(const char* str, int length) {
+    uint64_t result = 0;
+    for(int i = 0; i < length; i++) {
+        if(str[i] >= '0' && str[i] <= '9') {
+            result = result * 10 + (str[i] - '0');
+        } else {
+            break; // Stop parsing on non-digit
+        }
+    }
+    return result;
+}
 
 int visualise_statement(struct statement* stmt) {
     if(stmt->type == STATEMENT_TYPE_SYSCALL) {
         printf("System call with arguments:\n");
-        for(int i = 0; i < 12; i++) {
+        for(int i = 0; i < stmt->num_args; i++) {
             if(stmt->args[i].type == EXPRESSION_TYPE_UINT64) {
                 printf("Arg %d: %lu\n", i + 1, stmt->args[i].value.uint64_value);
             }
         }
     }
     return 0;
+}
+
+int tokenizer(char* str) {
+    if(*str == '\0') {
+        return 0;
+    }
+
+    if(*str == ' ') {
+        return 1;
+    }
+
+    if(*str == ';') {
+        return 1;
+    }
+
+    int i = 1;
+    while(str[i] != ' ' && str[i] != ';' && str[i] != '\0') {
+        i++;
+    }
+    return i;
 }
 
 int main() {
@@ -106,5 +140,43 @@ int main() {
     fwrite(finalCode, sizeof(char), 64 + 56 + 12, outputFile);
     fclose(outputFile);
     */
+
+    struct statement** statements = NULL;
+    int num_statements = 0;
+    struct statement* c_statement = NULL;
+    int argsI = 0;
+
+    char* currentToken = fileContent;
+    int token_length = tokenizer(currentToken);
+    while(token_length > 0) {
+        if(*currentToken != ' ' && *currentToken != ';') {
+            if(c_statement == NULL) {
+                c_statement = malloc(sizeof(struct statement));
+                if(strncmp(currentToken, "sys", token_length) == 0) {
+                    c_statement->type = STATEMENT_TYPE_SYSCALL;
+                }
+            } else {
+                c_statement->args = realloc(c_statement->args, sizeof(struct expression) * (argsI + 1));
+                c_statement->num_args = argsI + 1;
+
+                c_statement->args[argsI].type = EXPRESSION_TYPE_UINT64;
+                c_statement->args[argsI].value.uint64_value = parse_uint64(currentToken, token_length);
+                argsI++;
+            }
+        } else if (currentToken[0] == ';') {
+            statements = realloc(statements, sizeof(struct statement*) * (num_statements + 1));
+            statements[num_statements] = c_statement;
+            num_statements++;
+
+            c_statement = NULL;
+            argsI = 0;
+        }
+        currentToken += token_length;
+        token_length = tokenizer(currentToken);
+    }
+
+    for(int i = 0; i < num_statements; i++) {
+        visualise_statement(statements[i]);
+    }
 
 }
