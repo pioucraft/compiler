@@ -7,11 +7,13 @@
 #define STATEMENT_TYPE_SYSCALL 0
 
 #define EXPRESSION_TYPE_UINT64 0
+#define EXPRESSION_TYPE_UINT32 1
 
 struct expression {
     unsigned char type;
     union {
         uint64_t uint64_value;
+        uint32_t uint32_value;
     } value;
 };
 
@@ -22,6 +24,18 @@ struct statement {
 };
 
 uint64_t parse_uint64(const char* str, int length) {
+    uint64_t result = 0;
+    for(int i = 0; i < length; i++) {
+        if(str[i] >= '0' && str[i] <= '9') {
+            result = result * 10 + (str[i] - '0');
+        } else {
+            break; // Stop parsing on non-digit
+        }
+    }
+    return result;
+}
+
+uint32_t parse_uint32(const char* str, int length) {
     uint64_t result = 0;
     for(int i = 0; i < length; i++) {
         if(str[i] >= '0' && str[i] <= '9') {
@@ -54,6 +68,9 @@ int visualise_statement(struct statement* stmt) {
             case EXPRESSION_TYPE_UINT64:
                 printf("\"uint64\"");
                 break;
+            case EXPRESSION_TYPE_UINT32:
+                printf("\"uint32\"");
+                break;
             default:
                 printf("\"unknown\"");
                 break;
@@ -69,20 +86,6 @@ int visualise_statement(struct statement* stmt) {
     printf("  ]\n");
     printf("}\n");
     return 0;
-}
-
-uint64_t uint64_to_le(uint64_t value) {
-    /*
-    return ((value & 0x00000000000000FF) << 56) |
-           ((value & 0x000000000000FF00) << 40) |
-           ((value & 0x0000000000FF0000) << 24) |
-           ((value & 0x00000000FF000000) << 8) |
-           ((value & 0x000000FF00000000) >> 8) |
-           ((value & 0x0000FF0000000000) >> 24) |
-           ((value & 0x00FF000000000000) >> 40) |
-           ((value & 0xFF00000000000000) >> 56);
-           */
-    return value; // On little-endian systems, the value is already in little-endian format
 }
 
 int tokenizer(char* str) {
@@ -199,8 +202,21 @@ int main() {
                 c_statement->args = realloc(c_statement->args, sizeof(struct expression) * (argsI + 1));
                 c_statement->num_args = argsI + 1;
 
-                c_statement->args[argsI].type = EXPRESSION_TYPE_UINT64;
-                c_statement->args[argsI].value.uint64_value = parse_uint64(currentToken, token_length);
+                if(currentToken[0] >= '0' && currentToken[0] <= '9') {
+                    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT32;
+                    c_statement->args[argsI].value.uint64_value = parse_uint32(currentToken, token_length);
+                } else if(strncmp(currentToken, "uint64", token_length) == 0)  {
+
+                    currentToken += token_length;
+                    token_length = tokenizer(currentToken);
+                    while(currentToken[0] == ' ') {
+                        currentToken++;
+                        token_length = tokenizer(currentToken);
+                    }
+
+                    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT64;
+                    c_statement->args[argsI].value.uint64_value = parse_uint64(currentToken, token_length);
+                }
                 argsI++;
             }
         } else if (currentToken[0] == ';') {
@@ -227,21 +243,35 @@ int main() {
 
     for(int i = 0; i < num_statements; i++) {
         if(statements[i]->type == STATEMENT_TYPE_SYSCALL) {
-            finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
-            finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
-            finalCode[current_byte + 1] = 0xb8; // mov rax, syscall_number
-            uint64_t syscall_number_le = uint64_to_le(statements[i]->args[0].value.uint64_value);
-            memcpy(finalCode + current_byte + 2, &syscall_number_le, 8); // syscall number
-            current_byte += 10;
+            if(statements[i]->args[0].type == EXPRESSION_TYPE_UINT64) {
+                finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
+                finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
+                finalCode[current_byte + 1] = 0xb8; // mov rax, syscall_number
+                uint64_t syscall_number_le = statements[i]->args[0].value.uint64_value;
+                memcpy(finalCode + current_byte + 2, &syscall_number_le, 8); // syscall number
+                current_byte += 10;
+            } else if(statements[i]->args[0].type == EXPRESSION_TYPE_UINT32) {
+                finalCode = realloc(finalCode, sizeof(char) * (current_byte + 5));
+                finalCode[current_byte] = 0xb8; // mov rax, syscall_number
+                uint32_t syscall_number_le = statements[i]->args[0].value.uint32_value;
+                memcpy(finalCode + current_byte + 1, &syscall_number_le, 4); // syscall number
+                current_byte += 5;
+            }
         }
         for(int j = 1; j < statements[i]->num_args; j++) {
             if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT64) {
                 finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
                 finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
                 finalCode[current_byte + 1] = 0xbf; // mov rdi, arg1
-                uint64_t arg_le = uint64_to_le(statements[i]->args[j].value.uint64_value);
+                uint64_t arg_le = statements[i]->args[j].value.uint64_value;
                 memcpy(finalCode + current_byte + 2, &arg_le, 8); // arg1
                 current_byte += 10;
+            } else if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT32) {
+                finalCode = realloc(finalCode, sizeof(char) * (current_byte + 5));
+                finalCode[current_byte] = 0xbf; // mov rdi, arg1
+                uint32_t arg_le = statements[i]->args[j].value.uint32_value;
+                memcpy(finalCode + current_byte + 1, &arg_le, 4); // arg1
+                current_byte += 5;
             }
         }
         finalCode = realloc(finalCode, sizeof(char) * (current_byte + 2));
@@ -249,9 +279,10 @@ int main() {
         finalCode[current_byte + 1] = 0x05; // syscall
         current_byte += 2;
     }
-    uint64_t le_file_size = uint64_to_le(current_byte);
-    memcpy(finalCode + 64 + 32, &le_file_size, 8);
-    memcpy(finalCode + 64 + 40, &le_file_size, 8);
+
+    memcpy(finalCode + 64 + 32, &current_byte, 8);
+    memcpy(finalCode + 64 + 40, &current_byte, 8);
+
     // Write the final code to an ELF file
     FILE* outputFile = fopen("output.elf", "wb");
     fwrite(finalCode, sizeof(char), current_byte, outputFile);
