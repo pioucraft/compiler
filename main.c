@@ -67,16 +67,18 @@ int visualise_statement(struct statement* stmt) {
         switch(stmt->args[i].type) {
             case EXPRESSION_TYPE_UINT64:
                 printf("\"uint64\"");
+                printf(",\n");
+                printf("      \"value\": %lu", stmt->args[i].value.uint64_value);
                 break;
             case EXPRESSION_TYPE_UINT32:
                 printf("\"uint32\"");
+                printf(",\n");
+                printf("      \"value\": %u", stmt->args[i].value.uint32_value);
                 break;
             default:
                 printf("\"unknown\"");
                 break;
         }
-        printf(",\n");
-        printf("      \"value\": %lu\n", stmt->args[i].value.uint64_value);
         printf("    }");
         if(i < stmt->num_args - 1) {
             printf(",");
