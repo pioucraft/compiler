@@ -34,15 +34,55 @@ uint64_t parse_uint64(const char* str, int length) {
 }
 
 int visualise_statement(struct statement* stmt) {
-    if(stmt->type == STATEMENT_TYPE_SYSCALL) {
-        printf("System call with arguments:\n");
-        for(int i = 0; i < stmt->num_args; i++) {
-            if(stmt->args[i].type == EXPRESSION_TYPE_UINT64) {
-                printf("Arg %d: %lu\n", i + 1, stmt->args[i].value.uint64_value);
-            }
-        }
+    // visualise as a JSON and write the types not as the raw integers but as the defined constants name
+    printf("{\n");
+    printf("  \"type\": ");
+    switch(stmt->type) {
+        case STATEMENT_TYPE_SYSCALL:
+            printf("\"syscall\"");
+            break;
+        default:
+            printf("\"unknown\"");
+            break;
     }
+    printf(",\n");
+    printf("  \"args\": [\n");
+    for(int i = 0; i < stmt->num_args; i++) {
+        printf("    {\n");
+        printf("      \"type\": ");
+        switch(stmt->args[i].type) {
+            case EXPRESSION_TYPE_UINT64:
+                printf("\"uint64\"");
+                break;
+            default:
+                printf("\"unknown\"");
+                break;
+        }
+        printf(",\n");
+        printf("      \"value\": %lu\n", stmt->args[i].value.uint64_value);
+        printf("    }");
+        if(i < stmt->num_args - 1) {
+            printf(",");
+        }
+        printf("\n");
+    }
+    printf("  ]\n");
+    printf("}\n");
     return 0;
+}
+
+uint64_t uint64_to_le(uint64_t value) {
+    /*
+    return ((value & 0x00000000000000FF) << 56) |
+           ((value & 0x000000000000FF00) << 40) |
+           ((value & 0x0000000000FF0000) << 24) |
+           ((value & 0x00000000FF000000) << 8) |
+           ((value & 0x000000FF00000000) >> 8) |
+           ((value & 0x0000FF0000000000) >> 24) |
+           ((value & 0x00FF000000000000) >> 40) |
+           ((value & 0xFF00000000000000) >> 56);
+           */
+    return value; // On little-endian systems, the value is already in little-endian format
 }
 
 int tokenizer(char* str) {
@@ -179,4 +219,41 @@ int main() {
         visualise_statement(statements[i]);
     }
 
+    char* finalCode = malloc(sizeof(char) * (64 + 56));
+    memcpy(finalCode, ELF_headers, 64);
+    memcpy(finalCode + 64, programHeader, 56);
+
+    uint64_t current_byte = 64 + 56;
+
+    for(int i = 0; i < num_statements; i++) {
+        if(statements[i]->type == STATEMENT_TYPE_SYSCALL) {
+            finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
+            finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
+            finalCode[current_byte + 1] = 0xb8; // mov rax, syscall_number
+            uint64_t syscall_number_le = uint64_to_le(statements[i]->args[0].value.uint64_value);
+            memcpy(finalCode + current_byte + 2, &syscall_number_le, 8); // syscall number
+            current_byte += 10;
+        }
+        for(int j = 1; j < statements[i]->num_args; j++) {
+            if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT64) {
+                finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
+                finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
+                finalCode[current_byte + 1] = 0xbf; // mov rdi, arg1
+                uint64_t arg_le = uint64_to_le(statements[i]->args[j].value.uint64_value);
+                memcpy(finalCode + current_byte + 2, &arg_le, 8); // arg1
+                current_byte += 10;
+            }
+        }
+        finalCode = realloc(finalCode, sizeof(char) * (current_byte + 2));
+        finalCode[current_byte] = 0x0f; // syscall
+        finalCode[current_byte + 1] = 0x05; // syscall
+        current_byte += 2;
+    }
+    uint64_t le_file_size = uint64_to_le(current_byte);
+    memcpy(finalCode + 64 + 32, &le_file_size, 8);
+    memcpy(finalCode + 64 + 40, &le_file_size, 8);
+    // Write the final code to an ELF file
+    FILE* outputFile = fopen("output.elf", "wb");
+    fwrite(finalCode, sizeof(char), current_byte, outputFile);
+    fclose(outputFile);
 }
