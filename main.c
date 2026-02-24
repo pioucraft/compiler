@@ -129,10 +129,6 @@ int next_token(char** currentToken, int* token_length) {
     return 0;
 }
 
-int parse_statement() {
-    return 0;
-}
-
 int main() {
     FILE *file = fopen("main.gougoule", "r");
 
