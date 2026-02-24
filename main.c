@@ -107,20 +107,29 @@ int tokenizer(char* str) {
     return i;
 }
 
-int parse_uint32_expression(struct statement* c_statement, char* currentToken, int token_length, int argsI) {
-    return 0;
-}
-
-int parse_uint64_expression(struct statement* c_statement, char* currentToken, int token_length, int argsI) {
-    return 0;
-}
-
 int next_token(char** currentToken, int* token_length) {
     *currentToken += *token_length;
     *token_length = tokenizer(*currentToken);
     while((*currentToken)[0] == ' ' || (*currentToken)[0] == '\n' || (*currentToken)[0] == '\t') {
         (*currentToken)++;
         *token_length = tokenizer(*currentToken);
+    }
+    return 0;
+}
+
+int parse_statement_argument(char** currentToken, int* token_length, struct expression* argument) {
+    if((*currentToken)[0] >= '0' && (*currentToken)[0] <= '9') {
+        argument->type = EXPRESSION_TYPE_UINT32;
+        argument->value.uint32_value = parse_uint32(*currentToken, *token_length);
+    } else if(strncmp(*currentToken, "uint64", *token_length) == 0)  {
+        next_token(currentToken, token_length);
+
+        argument->type = EXPRESSION_TYPE_UINT64;
+        argument->value.uint64_value = parse_uint64(*currentToken, *token_length);
+    } else if(strncmp(*currentToken, "uint32", *token_length) == 0)  {
+        next_token(currentToken, token_length);
+        argument->type = EXPRESSION_TYPE_UINT32;
+        argument->value.uint32_value = parse_uint32(*currentToken, *token_length);
     }
     return 0;
 }
@@ -188,20 +197,8 @@ int main() {
             } else {
                 c_statement->args = realloc(c_statement->args, sizeof(struct expression) * (argsI + 1));
                 c_statement->num_args = argsI + 1;
+                parse_statement_argument(&currentToken, &token_length, &(c_statement->args[argsI]));
 
-                if(currentToken[0] >= '0' && currentToken[0] <= '9') {
-                    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT32;
-                    c_statement->args[argsI].value.uint32_value = parse_uint32(currentToken, token_length);
-                } else if(strncmp(currentToken, "uint64", token_length) == 0)  {
-                    next_token(&currentToken, &token_length);
-
-                    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT64;
-                    c_statement->args[argsI].value.uint64_value = parse_uint64(currentToken, token_length);
-                } else if(strncmp(currentToken, "uint32", token_length) == 0)  {
-                    next_token(&currentToken, &token_length);
-                    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT32;
-                    c_statement->args[argsI].value.uint32_value = parse_uint32(currentToken, token_length);
-                }
                 argsI++;
             }
         } else if (currentToken[0] == ';') {
