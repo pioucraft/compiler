@@ -179,7 +179,7 @@ int main() {
     int token_length = 0;
     next_token(&currentToken, &token_length);
     while(token_length > 0) {
-        if(*currentToken != ' ' && *currentToken != ';') {
+        if(*currentToken != ';') {
             if(c_statement == NULL) {
                 c_statement = malloc(sizeof(struct statement));
                 if(strncmp(currentToken, "sys", token_length) == 0) {
