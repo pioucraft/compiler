@@ -107,6 +107,18 @@ int tokenizer(char* str) {
     return i;
 }
 
+int parse_uint32_statement(struct statement* c_statement, char* currentToken, int token_length, int argsI) {
+    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT32;
+    c_statement->args[argsI].value.uint32_value = parse_uint32(currentToken, token_length);
+    return 0;
+}
+
+int parse_uint64_statement(struct statement* c_statement, char* currentToken, int token_length, int argsI) {
+    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT64;
+    c_statement->args[argsI].value.uint64_value = parse_uint64(currentToken, token_length);
+    return 0;
+}
+
 int main() {
     FILE *file = fopen("main.gougoule", "r");
 
@@ -202,8 +214,7 @@ int main() {
                 c_statement->num_args = argsI + 1;
 
                 if(currentToken[0] >= '0' && currentToken[0] <= '9') {
-                    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT32;
-                    c_statement->args[argsI].value.uint32_value = parse_uint32(currentToken, token_length);
+                    parse_uint32_statement(c_statement, currentToken, token_length, argsI);
                 } else if(strncmp(currentToken, "uint64", token_length) == 0)  {
 
                     currentToken += token_length;
@@ -213,8 +224,7 @@ int main() {
                         token_length = tokenizer(currentToken);
                     }
 
-                    c_statement->args[argsI].type = EXPRESSION_TYPE_UINT64;
-                    c_statement->args[argsI].value.uint64_value = parse_uint64(currentToken, token_length);
+                    parse_uint64_statement(c_statement, currentToken, token_length, argsI);
                 }
                 argsI++;
             }
