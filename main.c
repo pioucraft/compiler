@@ -203,7 +203,7 @@ int main() {
 
                 if(currentToken[0] >= '0' && currentToken[0] <= '9') {
                     c_statement->args[argsI].type = EXPRESSION_TYPE_UINT32;
-                    c_statement->args[argsI].value.uint64_value = parse_uint32(currentToken, token_length);
+                    c_statement->args[argsI].value.uint32_value = parse_uint32(currentToken, token_length);
                 } else if(strncmp(currentToken, "uint64", token_length) == 0)  {
 
                     currentToken += token_length;
