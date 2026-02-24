@@ -92,7 +92,7 @@ int tokenizer(char* str) {
         return 0;
     }
 
-    if(*str == ' ') {
+    if(*str == ' ' || *str == '\n' || *str == '\t') {
         return 1;
     }
 
@@ -122,7 +122,7 @@ int parse_uint64_expression(struct statement* c_statement, char* currentToken, i
 int next_token(char** currentToken, int* token_length) {
     *currentToken += *token_length;
     *token_length = tokenizer(*currentToken);
-    while((*currentToken)[0] == ' ') {
+    while((*currentToken)[0] == ' ' || (*currentToken)[0] == '\n' || (*currentToken)[0] == '\t') {
         (*currentToken)++;
         *token_length = tokenizer(*currentToken);
     }
@@ -215,7 +215,8 @@ int main() {
     int argsI = 0;
 
     char* currentToken = fileContent;
-    int token_length = tokenizer(currentToken);
+    int token_length = 0;
+    next_token(&currentToken, &token_length);
     while(token_length > 0) {
         if(*currentToken != ' ' && *currentToken != ';') {
             if(c_statement == NULL) {
@@ -247,8 +248,7 @@ int main() {
             c_statement = NULL;
             argsI = 0;
         }
-        currentToken += token_length;
-        token_length = tokenizer(currentToken);
+        next_token(&currentToken, &token_length);
     }
 
     for(int i = 0; i < num_statements; i++) {
