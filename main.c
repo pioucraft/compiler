@@ -119,6 +119,16 @@ int parse_uint64_statement(struct statement* c_statement, char* currentToken, in
     return 0;
 }
 
+int next_token(char** currentToken, int* token_length) {
+    *currentToken += *token_length;
+    *token_length = tokenizer(*currentToken);
+    while((*currentToken)[0] == ' ') {
+        (*currentToken)++;
+        *token_length = tokenizer(*currentToken);
+    }
+    return 0;
+}
+
 int main() {
     FILE *file = fopen("main.gougoule", "r");
 
@@ -217,13 +227,7 @@ int main() {
                     parse_uint32_statement(c_statement, currentToken, token_length, argsI);
                 } else if(strncmp(currentToken, "uint64", token_length) == 0)  {
 
-                    currentToken += token_length;
-                    token_length = tokenizer(currentToken);
-                    while(currentToken[0] == ' ') {
-                        currentToken++;
-                        token_length = tokenizer(currentToken);
-                    }
-
+                    next_token(&currentToken, &token_length);
                     parse_uint64_statement(c_statement, currentToken, token_length, argsI);
                 }
                 argsI++;
