@@ -178,37 +178,6 @@ int main() {
         0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00 // Alignment
     };
 
-    /*
-    // print the syscall
-    printf("System call number: %d\n", syscall.syscall_number);
-    printf("Argument 1: %d\n", syscall.arg1);
-
-    unsigned char* code = malloc(sizeof(unsigned char) * (5 + 5 + 2));
-    code[0] = 0xb8; // mov rax, syscall_number
-    code[1] = syscall.syscall_number; // syscall number
-    code[2] = 0x00; // padding
-    code[3] = 0x00; // padding
-    code[4] = 0x00; // padding
-    code[5] = 0xbf; // mov rdi, arg1
-    code[6] = syscall.arg1; // arg1
-    code[7] = 0x00; // padding
-    code[8] = 0x00; // padding
-    code[9] = 0x00; // padding
-    code[10] = 0x0f; // syscall
-    code[11] = 0x05; // syscall
-
-    char* finalCode = malloc(sizeof(char) * (64 + 56 + 12));
-    memcpy(finalCode, ELF_headers, 64);
-    memcpy(finalCode + 64, programHeader, 56);
-    memcpy(finalCode + 64 + 56, code, 12);
-    finalCode[64 + 32] = 12; // File size in program header
-    finalCode[64 + 40] = 12; // Memory size in program header
-
-    FILE* outputFile = fopen("output.elf", "wb");
-    fwrite(finalCode, sizeof(char), 64 + 56 + 12, outputFile);
-    fclose(outputFile);
-    */
-
     struct statement** statements = NULL;
     int num_statements = 0;
     struct statement* c_statement = NULL;
