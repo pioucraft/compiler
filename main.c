@@ -4,10 +4,12 @@
 #include <stdint.h>
 #include <unistd.h>
 
-#define STATEMENT_TYPE_SYSCALL 0
+#define TYPE_NULL 0
 
-#define EXPRESSION_TYPE_UINT64 0
-#define EXPRESSION_TYPE_UINT32 1
+#define STATEMENT_TYPE_SYSCALL 1
+
+#define EXPRESSION_TYPE_UINT64 1
+#define EXPRESSION_TYPE_UINT32 2
 
 struct expression {
     unsigned char type;
@@ -131,6 +133,28 @@ int parse_statement_argument(char** currentToken, int* token_length, struct expr
         argument->type = EXPRESSION_TYPE_UINT32;
         argument->value.uint32_value = parse_uint32(*currentToken, *token_length);
     }
+    next_token(currentToken, token_length);
+    return 0;
+}
+
+int parse_statement(char** currentToken, int* token_length, struct statement* c_statement) {
+    int argsI = 0;
+
+    if(strncmp(*currentToken, "sys", *token_length) == 0) {
+        c_statement->type = STATEMENT_TYPE_SYSCALL;
+    }
+    printf("Current token: %.*s\n", *token_length, *currentToken);
+    next_token(currentToken, token_length);
+
+    while(*token_length > 0 && (*currentToken)[0] != ';') {
+        c_statement->args = realloc(c_statement->args, sizeof(struct expression) * (argsI + 1));
+        c_statement->num_args = argsI + 1;
+        parse_statement_argument(currentToken, token_length, &(c_statement->args[argsI]));
+        argsI++;
+    }
+
+
+    next_token(currentToken, token_length);
     return 0;
 }
 
@@ -187,29 +211,13 @@ int main() {
     char* currentToken = fileContent;
     int token_length = 0;
     next_token(&currentToken, &token_length);
+
     while(token_length > 0) {
-        if(*currentToken != ';') {
-            if(c_statement == NULL) {
-                c_statement = malloc(sizeof(struct statement));
-                if(strncmp(currentToken, "sys", token_length) == 0) {
-                    c_statement->type = STATEMENT_TYPE_SYSCALL;
-                }
-            } else {
-                c_statement->args = realloc(c_statement->args, sizeof(struct expression) * (argsI + 1));
-                c_statement->num_args = argsI + 1;
-                parse_statement_argument(&currentToken, &token_length, &(c_statement->args[argsI]));
-
-                argsI++;
-            }
-        } else if (currentToken[0] == ';') {
-            statements = realloc(statements, sizeof(struct statement*) * (num_statements + 1));
-            statements[num_statements] = c_statement;
-            num_statements++;
-
-            c_statement = NULL;
-            argsI = 0;
-        }
-        next_token(&currentToken, &token_length);
+        c_statement = malloc(sizeof(struct statement));
+        parse_statement(&currentToken, &token_length, c_statement);
+        statements = realloc(statements, sizeof(struct statement*) * (num_statements + 1));
+        statements[num_statements] = c_statement;
+        num_statements++;
     }
 
     for(int i = 0; i < num_statements; i++) {
