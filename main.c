@@ -143,7 +143,6 @@ int parse_statement(char** currentToken, int* token_length, struct statement* c_
     if(strncmp(*currentToken, "sys", *token_length) == 0) {
         c_statement->type = STATEMENT_TYPE_SYSCALL;
     }
-    printf("Current token: %.*s\n", *token_length, *currentToken);
     next_token(currentToken, token_length);
 
     while(*token_length > 0 && (*currentToken)[0] != ';') {
