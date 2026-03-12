@@ -230,35 +230,25 @@ int main() {
     uint64_t current_byte = 64 + 56;
 
     for(int i = 0; i < num_statements; i++) {
-        if(statements[i]->type == STATEMENT_TYPE_SYSCALL) {
-            if(statements[i]->args[0].type == EXPRESSION_TYPE_UINT64) {
-                finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
-                finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
-                finalCode[current_byte + 1] = 0xb8; // mov rax, syscall_number
-                uint64_t syscall_number_le = statements[i]->args[0].value.uint64_value;
-                memcpy(finalCode + current_byte + 2, &syscall_number_le, 8); // syscall number
-                current_byte += 10;
-            } else if(statements[i]->args[0].type == EXPRESSION_TYPE_UINT32) {
-                finalCode = realloc(finalCode, sizeof(char) * (current_byte + 5));
-                finalCode[current_byte] = 0xb8; // mov rax, syscall_number
-                uint32_t syscall_number_le = statements[i]->args[0].value.uint32_value;
-                memcpy(finalCode + current_byte + 1, &syscall_number_le, 4); // syscall number
-                current_byte += 5;
+        for(int j = 0; j < statements[i]->num_args; j++) {
+            printf("%d\n", j);
+            if(statements[i]->type == STATEMENT_TYPE_SYSCALL) {
+                if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT64) {
+                    finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
+                    finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
+                    finalCode[current_byte + 1] = j == 0 ? 0xb8 : 0xbf;
+                    uint64_t expression_value = statements[i]->args[j].value.uint64_value;
+                    memcpy(finalCode + current_byte + 2, &expression_value, 8);
+                    current_byte += 10;
+                } else if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT32) {
+                    finalCode = realloc(finalCode, sizeof(char) * (current_byte + 5));
+                    finalCode[current_byte] = j == 0 ? 0xb8 : 0xbf;
+                    uint32_t expression_value = statements[i]->args[j].value.uint32_value;
+                    memcpy(finalCode + current_byte + 1, &expression_value, 4);
+                    current_byte += 5;
+                }
             }
-        }
-        if(statements[i]->args[1].type == EXPRESSION_TYPE_UINT64) {
-            finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
-            finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
-            finalCode[current_byte + 1] = 0xbf; // mov rdi, arg1
-            uint64_t arg_le = statements[i]->args[1].value.uint64_value;
-            memcpy(finalCode + current_byte + 2, &arg_le, 8); // arg1
-            current_byte += 10;
-        } else if(statements[i]->args[1].type == EXPRESSION_TYPE_UINT32) {
-            finalCode = realloc(finalCode, sizeof(char) * (current_byte + 5));
-            finalCode[current_byte] = 0xbf; // mov rdi, arg1
-            uint32_t arg_le = statements[i]->args[1].value.uint32_value;
-            memcpy(finalCode + current_byte + 1, &arg_le, 4); // arg1
-            current_byte += 5;
+
         }
         finalCode = realloc(finalCode, sizeof(char) * (current_byte + 2));
         finalCode[current_byte] = 0x0f; // syscall
