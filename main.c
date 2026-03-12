@@ -165,6 +165,24 @@ unsigned char get_mov_instruction(int argument_index) {
     }
 }
 
+int compile_expression(struct expression* expression, unsigned char** finalCode, uint64_t* current_byte, int argument_index) {
+    if(expression->type == EXPRESSION_TYPE_UINT64) {
+        *finalCode = realloc(*finalCode, sizeof(char) * (*current_byte + 10));
+        (*finalCode)[*current_byte] = 0x48; // REX prefix for 64-bit operand size
+        (*finalCode)[*current_byte + 1] = get_mov_instruction(argument_index);
+        uint64_t expression_value = expression->value.uint64_value;
+        memcpy(*finalCode + *current_byte + 2, &expression_value, 8);
+        *current_byte += 10;
+    } else if(expression->type == EXPRESSION_TYPE_UINT32) {
+        *finalCode = realloc(*finalCode, sizeof(char) * (*current_byte + 5));
+        (*finalCode)[*current_byte] = get_mov_instruction(argument_index);
+        uint32_t expression_value = expression->value.uint32_value;
+        memcpy(*finalCode + *current_byte + 1, &expression_value, 4);
+        *current_byte += 5;
+    }
+    return 0;
+}
+
 int main() {
     FILE *file = fopen("main.gougoule", "r");
 
@@ -231,7 +249,7 @@ int main() {
         visualise_statement(statements[i]);
     }
 
-    char* finalCode = malloc(sizeof(char) * (64 + 56));
+    unsigned char* finalCode = malloc(sizeof(char) * (64 + 56));
     memcpy(finalCode, ELF_headers, 64);
     memcpy(finalCode + 64, programHeader, 56);
 
@@ -239,24 +257,7 @@ int main() {
 
     for(int i = 0; i < num_statements; i++) {
         for(int j = 0; j < statements[i]->num_args; j++) {
-            printf("%d\n", j);
-            if(statements[i]->type == STATEMENT_TYPE_SYSCALL) {
-                if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT64) {
-                    finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
-                    finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
-                    finalCode[current_byte + 1] = get_mov_instruction(j);
-                    uint64_t expression_value = statements[i]->args[j].value.uint64_value;
-                    memcpy(finalCode + current_byte + 2, &expression_value, 8);
-                    current_byte += 10;
-                } else if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT32) {
-                    finalCode = realloc(finalCode, sizeof(char) * (current_byte + 5));
-                    finalCode[current_byte] = get_mov_instruction(j);
-                    uint32_t expression_value = statements[i]->args[j].value.uint32_value;
-                    memcpy(finalCode + current_byte + 1, &expression_value, 4);
-                    current_byte += 5;
-                }
-            }
-
+            compile_expression(&(statements[i]->args[j]), &finalCode, &current_byte, j);
         }
         finalCode = realloc(finalCode, sizeof(char) * (current_byte + 2));
         finalCode[current_byte] = 0x0f; // syscall
