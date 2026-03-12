@@ -157,6 +157,14 @@ int parse_statement(char** currentToken, int* token_length, struct statement* c_
     return 0;
 }
 
+unsigned char get_mov_instruction(int argument_index) {
+    if(argument_index == 0) {
+        return 0xb8; // mov _ax
+    } else {
+        return 0xbf; // mov _di
+    }
+}
+
 int main() {
     FILE *file = fopen("main.gougoule", "r");
 
@@ -236,13 +244,13 @@ int main() {
                 if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT64) {
                     finalCode = realloc(finalCode, sizeof(char) * (current_byte + 10));
                     finalCode[current_byte] = 0x48; // REX prefix for 64-bit operand size
-                    finalCode[current_byte + 1] = j == 0 ? 0xb8 : 0xbf;
+                    finalCode[current_byte + 1] = get_mov_instruction(j);
                     uint64_t expression_value = statements[i]->args[j].value.uint64_value;
                     memcpy(finalCode + current_byte + 2, &expression_value, 8);
                     current_byte += 10;
                 } else if(statements[i]->args[j].type == EXPRESSION_TYPE_UINT32) {
                     finalCode = realloc(finalCode, sizeof(char) * (current_byte + 5));
-                    finalCode[current_byte] = j == 0 ? 0xb8 : 0xbf;
+                    finalCode[current_byte] = get_mov_instruction(j);
                     uint32_t expression_value = statements[i]->args[j].value.uint32_value;
                     memcpy(finalCode + current_byte + 1, &expression_value, 4);
                     current_byte += 5;
